@@ -1,0 +1,148 @@
+---
+title: 'Final Project- Practical Machine Learning, Kevin Urbina'
+output:
+  word_document: default
+  html_document: default
+---
+
+#### GitHub Repo:https://github.com/Scotturbina/Practical-Machine-learning-project/
+
+## Introduction:
+#### Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+## Data source
+
+#### The training data for this project are available here:
+
+#### https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+#### The test data are available here:
+
+#### https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+## Data Procesing
+
+### Loading Packages and importing data
+
+```{r}
+#Loading required packages
+library(caret)
+library(rattle)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(repmis)
+
+```
+
+```{r}
+# Load data locally once you download it from URL's
+
+#import the data from the URLs
+trainurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+training <- source_data(trainurl, na.strings = c("NA", "#DIV/0!", ""), header = TRUE)
+testing <- source_data(testurl, na.strings = c("NA", "#DIV/0!", ""), header = TRUE)
+```
+
+#### Training set has 160 variables as same as Testing set, what we are trying to predict is the outcome of classe in the training set.
+
+## Cleaning the data
+
+#### Deleting predictor that contains missing values 
+```{r}
+training <- training[, colSums(is.na(training)) == 0]
+testing <- testing[, colSums(is.na(testing)) == 0]
+```
+
+#### Removing first seven predictors since they do not have much impact in the outcome of classe.
+
+```{r}
+trainData <- training[, -c(1:7)]
+testData <- testing[, -c(1:7)]
+```
+
+#### Now data is clean, both ( Testing and training ) has 57 variables
+
+## Data Split method
+
+#### The data (trainData) is going to be splited in 70% training and 30% for validation, this in order to compute out of sample errors.
+
+```{r}
+set.seed(661993) 
+inTrain <- createDataPartition(trainData$classe, p = 0.7, list = FALSE)
+train <- trainData[inTrain, ]
+valid <- trainData[-inTrain, ]
+```
+
+
+## Prediction Algotihms Methods
+
+#### We are going to use classification tress and random forest in order to predict the outcome
+
+## Classification trees
+
+#### K-fold validation= 10
+
+```{r}
+Ctrl_P <- trainControl(method = "cv", number = 10)
+
+Fit<- train(classe ~ ., data = train, method = "rpart", trControl = Ctrl_P)
+
+print(Fit, digits=4)
+
+```
+
+```{r}
+fancyRpartPlot(Fit$finalModel)
+
+```
+
+##Looking  at predictors results
+
+```{r}
+Predict_CTS <- predict(Fit, valid)
+#
+Predictor_result <-confusionMatrix(valid$classe, Predict_CTS)
+Predictor_result
+```
+
+#### Overall Statistics show us that model accuracy is 0.49 and Kappa 0.33 which tell us that this algorithm not work well to predict very well the outcome ( We need 0.7 of Kappa statistics at least)
+
+
+## Random Forest
+
+#### Lets try Random forest and evaluate the output
+
+```{r}
+Fit_RandF <- train(classe ~ ., data = train, method = "rf", trControl = Ctrl_P)
+
+print(Fit_RandF, digits = 4)
+```
+
+#### Predicting Outcomes
+
+```{r}
+
+Predict_RandF <-predict(Fit_RandF, valid)
+
+# Prediction result
+
+result_RandF <- confusionMatrix(valid$classe, Predict_RandF)
+
+result_RandF
+```
+
+
+#### The accuracy of this model is very good as same as the Kappa statistic but it is computationally inefficient.
+
+## Predict on Testing set
+
+#### The predicting is going to be done with random forest since was the best model.
+
+```{r}
+TestPre<-predict(Fit_RandF, testData)
+TestPre
+```
+
